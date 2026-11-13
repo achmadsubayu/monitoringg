@@ -567,9 +567,16 @@ function renderRankingMesin() {
         if (nomor === 3) { badgePeringkat = `<i class="fas fa-medal medal-icon" style="color: #cd7f32;"></i>`; textTebal = "fw-bold text-danger"; }
 
         html += `
-            <tr class="ranking-row text-center align-middle">
+            <tr class="ranking-row text-center align-middle" onclick="bukaModalRevisiMesin('${data.line}')" title="Klik untuk melihat Rencana Revisi & Salin Template">
                 <td>${badgePeringkat}</td>
-                <td class="text-start ${textTebal}">LINE: ${data.line}</td>
+                <td class="text-start ${textTebal}">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                        <span>LINE: ${data.line}</span>
+                        <button type="button" class="btn btn-sm btn-primary py-0 px-2" style="font-size: 0.75rem;" onclick="event.stopPropagation(); bukaModalRevisiMesin('${data.line}')">
+                            <i class="fas fa-clipboard-list me-1"></i>Lihat Job & Revisi
+                        </button>
+                    </div>
+                </td>
                 <td><span class="badge bg-danger fs-6">${data.total}</span> Kasus</td>
                 <td class="text-start">
                     <span class="badge bg-danger me-1">P1: ${data.p1}</span>
@@ -582,6 +589,358 @@ function renderRankingMesin() {
 
     html += `</tbody></table></div>`;
     container.innerHTML = html;
+}
+
+// =========================================================================
+// FITUR TAMBAHAN: MODAL RENCANA REVISI MESIN, SALIN TEMPLATE & CLOSE MASSAL
+// =========================================================================
+
+let daftarJobRevisiAktif = [];
+let daftarGrupRevisiAktif = [];
+
+// Fungsi untuk mengekstrak nama grup/unit dari Nama Job atau Keterangan
+function deteksiGrupUnitMesin(job) {
+    let nama = (job.namaJob || "").toUpperCase();
+    let ket = (job.ket || "").toUpperCase();
+
+    // 1. Jika ada format [UNIT: NAMA_UNIT | ...] dari form checklist
+    let matchUnit = job.namaJob.match(/\[UNIT:\s*([^|\]]+)/i);
+    if (matchUnit && matchUnit[1]) {
+        let unitBersih = matchUnit[1].trim();
+        // Ubah ke huruf kapital di awal kata agar rapi (contoh: "UNWIND" -> "Unwind")
+        return unitBersih.charAt(0).toUpperCase() + unitBersih.slice(1).toLowerCase();
+    }
+
+    // 2. Deteksi kata kunci bagian mesin populer (Interfold, Logsaw, Packaging, dll)
+    if (nama.includes("INTERFOLD") || ket.includes("INTERFOLD")) return "Interfold";
+    if (nama.includes("LOGSAW") || nama.includes("LOG SAW") || ket.includes("LOGSAW") || ket.includes("LOG SAW")) return "Logsaw";
+    if (nama.includes("PACKAGING") || nama.includes("PC0") || ket.includes("PACKAGING") || ket.includes("PC0")) return "Packaging";
+    if (nama.includes("UNWIND") || ket.includes("UNWIND")) return "Unwind";
+    if (nama.includes("EMBOSS") || ket.includes("EMBOSS")) return "Emboss";
+
+    return "Umum / Lainnya";
+}
+
+// Fungsi membersihkan teks keterangan untuk masuk ke Template WA (hapus tag (p1)-(p4) dan strip awal)
+function bersihkanKeteranganUntukTemplate(job) {
+    let teks = (job.ket || "").trim();
+    if (teks === "" || teks === "-") {
+        teks = (job.namaJob || "").replace(" 👉 Condition", "").trim();
+    }
+    // Hapus tanda bullet/strip di awal dan tag prioritas (p1)/(p2)/(p3)/(p4) di akhir/tengah
+    teks = teks.replace(/^[-•*.\s]+/, '').replace(/\s*\([pP][1-4]\)\s*/g, ' ').trim();
+    return teks;
+}
+
+// Fungsi saat baris mesin di Peringkat Mesin diklik
+function bukaModalRevisiMesin(namaLine) {
+    const lineTargetNormal = normalisasiTeks(namaLine);
+    document.getElementById('hiddenLineRevisiTerpilih').value = namaLine;
+    document.getElementById('labelLineRevisi').innerText = namaLine;
+    document.getElementById('inputHeaderTemplateRevisi').value = "SUN 1 Revisi " + namaLine;
+    document.getElementById('cekSemuaRevisi').checked = true;
+
+    // Ambil semua job aktif untuk mesin/line yang dipilih
+    daftarJobRevisiAktif = semuaJobAbnormal.filter(job => normalisasiTeks(job.line) === lineTargetNormal);
+    document.getElementById('jumlahJobRevisiMesin').innerText = daftarJobRevisiAktif.length;
+
+    // Kelompokkan berdasarkan Grup Unit
+    let mapGrup = {};
+    daftarJobRevisiAktif.forEach((job, idx) => {
+        let namaGrup = deteksiGrupUnitMesin(job);
+        job._grupRevisi = namaGrup;
+        job._idxRevisi = idx;
+        if (!mapGrup[namaGrup]) mapGrup[namaGrup] = [];
+        mapGrup[namaGrup].push(job);
+    });
+
+    daftarGrupRevisiAktif = Object.keys(mapGrup);
+
+    // 1. Render Input Nama Grup & Personil
+    const containerPersonil = document.getElementById('containerInputPersonilGrup');
+    let htmlPersonil = "";
+    if (daftarGrupRevisiAktif.length === 0) {
+        htmlPersonil = `<div class="col-12 text-muted small">Tidak ada grup aktif.</div>`;
+    } else {
+        daftarGrupRevisiAktif.forEach((grup, gIdx) => {
+            let nomorGrup = gIdx + 1;
+            let judulGrupDefault = `Group ${nomorGrup} ${grup}`;
+            htmlPersonil += `
+                <div class="col-md-6 col-12">
+                    <div class="p-2 bg-white border rounded shadow-sm">
+                        <label class="form-label small fw-bold text-primary mb-1">Nama Grup ${nomorGrup}:</label>
+                        <input type="text" class="form-control form-control-sm mb-1 input-judul-grup-revisi" data-grup="${grup}" value="${judulGrupDefault}" oninput="updateTemplateRevisiText()">
+                        <label class="form-label small text-muted mb-1">Personil ${judulGrupDefault}:</label>
+                        <input type="text" class="form-control form-control-sm input-personil-grup-revisi" data-grup="${grup}" placeholder="Contoh: Ivan dan Carlos" oninput="updateTemplateRevisiText()">
+                    </div>
+                </div>
+            `;
+        });
+    }
+    containerPersonil.innerHTML = htmlPersonil;
+
+    // 2. Render Daftar Masalah Monitoring beserta Checkbox
+    const containerList = document.getElementById('listMasalahRevisiContainer');
+    let htmlList = "";
+
+    if (daftarJobRevisiAktif.length === 0) {
+        htmlList = `<div class="alert alert-success text-center">Tidak ada job aktif pada mesin ${namaLine}.</div>`;
+    } else {
+        daftarGrupRevisiAktif.forEach((grup, gIdx) => {
+            let nomorGrup = gIdx + 1;
+            htmlList += `<div class="group-revisi-header fw-bold text-dark small mb-2 mt-2"><i class="fas fa-layer-group me-1"></i> Group ${nomorGrup}: ${grup} (${mapGrup[grup].length} Job)</div>`;
+            
+            mapGrup[grup].forEach(job => {
+                let ketTampil = bersihkanKeteranganUntukTemplate(job);
+                htmlList += `
+                    <div class="card revisi-item-card shadow-sm mb-2">
+                        <div class="card-body py-2 px-3">
+                            <div class="form-check d-flex align-items-start gap-2 mb-0">
+                                <input class="form-check-input cek-item-revisi mt-1" type="checkbox" value="${job._idxRevisi}" id="cekRevisi_${job._idxRevisi}" checked onchange="updateTemplateRevisiText()">
+                                <label class="form-check-label w-100" for="cekRevisi_${job._idxRevisi}" style="cursor:pointer;">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                        <span class="fw-bold text-dark small">· ${ketTampil}</span>
+                                        <span class="badge ${job.warnaPrioritas}" style="font-size: 0.7rem;">${job.prioritas}</span>
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                        Sumber: ${job.namaJob} | Tanggal: ${job.tanggal} (Shift ${job.shift}) | Pelapor: ${job.pelapor}
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+    }
+    containerList.innerHTML = htmlList;
+
+    // 3. Susun Teks Template Revisi Otomatis
+    updateTemplateRevisiText();
+
+    // 4. Tampilkan Modal
+    let modalEl = document.getElementById('modalRevisiMesin');
+    let modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInstance.show();
+}
+
+// Fungsi Pilih Semua / Batal Pilih Semua Checkbox Revisi
+function togglePilihSemuaJobRevisi(elMaster) {
+    const semuaCek = document.querySelectorAll('.cek-item-revisi');
+    semuaCek.forEach(c => c.checked = elMaster.checked);
+    updateTemplateRevisiText();
+}
+
+// Fungsi Menyusun Teks Template Sesuai Gambar Contoh (SUN 1 Revisi FC 121, Group, Titik ·, Personil)
+function updateTemplateRevisiText() {
+    let headerRevisi = document.getElementById('inputHeaderTemplateRevisi').value.trim();
+    let semuaCek = document.querySelectorAll('.cek-item-revisi:checked');
+    
+    let indexTerpilih = new Set();
+    semuaCek.forEach(c => indexTerpilih.add(parseInt(c.value, 10)));
+
+    // Ambil nilai kustom judul grup dan personil dari input
+    let mapJudulGrup = {};
+    document.querySelectorAll('.input-judul-grup-revisi').forEach(inp => {
+        mapJudulGrup[inp.getAttribute('data-grup')] = inp.value.trim();
+    });
+
+    let mapPersonilGrup = {};
+    document.querySelectorAll('.input-personil-grup-revisi').forEach(inp => {
+        mapPersonilGrup[inp.getAttribute('data-grup')] = inp.value.trim();
+    });
+
+    let barisTeks = [];
+    if (headerRevisi !== "") {
+        barisTeks.push(headerRevisi);
+    }
+
+    daftarGrupRevisiAktif.forEach((grup, gIdx) => {
+        let jobsDiGrupIni = daftarJobRevisiAktif.filter(j => j._grupRevisi === grup && indexTerpilih.has(j._idxRevisi));
+        if (jobsDiGrupIni.length === 0) return;
+
+        let judulGrup = mapJudulGrup[grup] || `Group ${gIdx + 1} ${grup}`;
+        barisTeks.push(judulGrup);
+
+        jobsDiGrupIni.forEach(job => {
+            let itemTeks = bersihkanKeteranganUntukTemplate(job);
+            // Bagi per baris jika di dalam 1 keterangan ada enter
+            itemTeks.split(/\r?\n/).forEach(subBaris => {
+                let bersih = subBaris.replace(/^[-•*.\s]+/, '').trim();
+                if (bersih !== "") {
+                    barisTeks.push(`· ${bersih}`);
+                }
+            });
+        });
+
+        let namaPersonil = mapPersonilGrup[grup] || "-";
+        barisTeks.push(`Personil : ${namaPersonil}`);
+        barisTeks.push(""); // Baris kosong antar grup
+    });
+
+    document.getElementById('teksTemplateRevisi').value = barisTeks.join("\n").trim();
+}
+
+// Fungsi Tombol Salin Template Revisi
+function salinTemplateRevisi() {
+    const textarea = document.getElementById('teksTemplateRevisi');
+    if (!textarea || !textarea.value.trim()) {
+        alert("Tidak ada teks template untuk disalin!");
+        return;
+    }
+
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(textarea.value).then(() => {
+        const btn = document.getElementById('btnSalinTemplateRevisi');
+        const htmlAsli = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check me-1"></i> Berhasil Disalin!';
+        btn.classList.replace('btn-success', 'btn-dark');
+        setTimeout(() => {
+            btn.innerHTML = htmlAsli;
+            btn.classList.replace('btn-dark', 'btn-success');
+        }, 2000);
+    }).catch(() => {
+        document.execCommand('copy');
+        alert("Template berhasil disalin!");
+    });
+}
+
+// Fungsi Preview Foto Bukti Revisi Massal
+function previewImageRevisiMassal(event) {
+    var reader = new FileReader();
+    reader.onload = function() {
+        var output = document.getElementById('previewRevisiMassal');
+        output.src = reader.result;
+        output.style.display = 'block';
+    }
+    if (event.target.files[0]) {
+        reader.readAsDataURL(event.target.files[0]);
+    }
+}
+
+// Fungsi Tombol Selesai Revisi (Close Semua Job Terpilih pada Mesin Tersebut)
+async function selesaikanSemuaJobRevisi() {
+    const semuaCek = document.querySelectorAll('.cek-item-revisi:checked');
+    if (semuaCek.length === 0) {
+        alert("Pilih minimal 1 job pada daftar untuk diselesaikan!");
+        return;
+    }
+
+    // Jika Nama Teknisi di form bawah kosong, gabungkan otomatis dari nama Personil grup yang diisi
+    let teknisiMassal = document.getElementById('inputTeknisiRevisiMassal').value.trim();
+    if (!teknisiMassal) {
+        let kumpulanPersonil = [];
+        document.querySelectorAll('.input-personil-grup-revisi').forEach(inp => {
+            if (inp.value.trim() !== "") kumpulanPersonil.push(inp.value.trim());
+        });
+        if (kumpulanPersonil.length > 0) {
+            teknisiMassal = "Tim Revisi (" + kumpulanPersonil.join(", ") + ")";
+            document.getElementById('inputTeknisiRevisiMassal').value = teknisiMassal;
+        }
+    }
+
+    const tindakanMassal = document.getElementById('inputTindakanRevisiMassal').value.trim();
+    if (!teknisiMassal || !tindakanMassal) {
+        alert("Mohon isi Nama Teknisi / Tim Revisi dan Catatan Penyelesaian Revisi!");
+        return;
+    }
+
+    const namaLine = document.getElementById('hiddenLineRevisiTerpilih').value;
+    if (!confirm(`Apakah Anda yakin ingin menutup (Close) ${semuaCek.length} job pada mesin ${namaLine} sebagai Selesai Revisi?`)) {
+        return;
+    }
+
+    const btn = document.getElementById('btnSelesaiRevisiMassal');
+    const teksBtnAsli = btn.innerHTML;
+    btn.disabled = true;
+
+    const fotoInput = document.getElementById('fotoBuktiRevisiMassal');
+    let base64String = "";
+    if (fotoInput && fotoInput.files.length > 0) {
+        base64String = document.getElementById('previewRevisiMassal').src;
+    }
+
+    let daftarJobDiproses = [];
+    semuaCek.forEach(c => {
+        let idx = parseInt(c.value, 10);
+        if (daftarJobRevisiAktif[idx]) {
+            daftarJobDiproses.push(daftarJobRevisiAktif[idx]);
+        }
+    });
+
+    let jumlahSukses = 0;
+    let urlFotoTersimpan = "";
+
+    for (let i = 0; i < daftarJobDiproses.length; i++) {
+        let job = daftarJobDiproses[i];
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Menutup Job (${i + 1}/${daftarJobDiproses.length})...`;
+
+        // Upload foto cukup pada pengiriman job pertama agar tidak menggandakan file di Drive
+        let fotoUntukJobIni = (i === 0) ? base64String : "";
+
+        const payload = {
+            idUnik: job.idUnik,
+            line: job.line,
+            namaJob: job.namaJob,
+            teknisi: teknisiMassal,
+            tindakan: tindakanMassal + (urlFotoTersimpan ? " (Bukti: " + urlFotoTersimpan + ")" : ""),
+            fotoBase64: fotoUntukJobIni
+        };
+
+        try {
+            const response = await fetch(SCRIPT_URL_SIMPAN, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+
+            if (result.status === "sukses") {
+                jumlahSukses++;
+                if (result.fileUrl && !urlFotoTersimpan) {
+                    urlFotoTersimpan = result.fileUrl;
+                }
+
+                let waktuSekarang = new Date().toLocaleString('id-ID');
+                semuaRiwayat.push({
+                    waktu: waktuSekarang,
+                    line: job.line,
+                    namaJob: job.namaJob,
+                    teknisi: teknisiMassal,
+                    tindakan: tindakanMassal,
+                    linkFoto: urlFotoTersimpan || (base64String ? "Tersimpan di Google Drive" : "Tidak ada")
+                });
+
+                // Hapus job yang sudah selesai dari daftar aktif
+                semuaJobAbnormal = semuaJobAbnormal.filter(j => j.idUnik.trim() !== job.idUnik.trim());
+            }
+        } catch (err) {
+            console.log("Gagal menutup job:", job.idUnik, err);
+        }
+    }
+
+    // Perbarui seluruh tampilan UI
+    renderRiwayatUI();
+    renderTombolPIC();
+    inisialisasiFilterLine();
+    terapkanFilterLine();
+    renderRankingMesin();
+
+    btn.innerHTML = teksBtnAsli;
+    btn.disabled = false;
+
+    alert(`Selesai! ${jumlahSukses} dari ${daftarJobDiproses.length} job pada mesin ${namaLine} berhasil di-close.`);
+
+    // Reset form revisi & tutup modal
+    document.getElementById('inputTeknisiRevisiMassal').value = "";
+    if (fotoInput) fotoInput.value = "";
+    document.getElementById('previewRevisiMassal').style.display = 'none';
+    document.getElementById('previewRevisiMassal').src = "";
+
+    let modalEl = document.getElementById('modalRevisiMesin');
+    let modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
 }
 
 // ===============================================
