@@ -490,7 +490,7 @@ function renderRiwayatUI() {
 }
 
 // ===============================================
-// LOGIKA BARU: RANKING / PERINGKAT MESIN
+// LOGIKA BARU: RANKING / PERINGKAT MESIN (P1, P2, P3, P4)
 // ===============================================
 function renderRankingMesin() {
     const container = document.getElementById('ranking-container');
@@ -498,17 +498,17 @@ function renderRankingMesin() {
 
     let hitunganLine = {};
 
-    // 1. Looping semua job untuk menghitung P1, P2, P4
+    // 1. Looping semua job untuk menghitung P1, P2, P3, P4
     semuaJobAbnormal.forEach(job => {
         let prioritas = job.prioritas;
-        let isTarget = prioritas.includes("P1") || prioritas.includes("P2") || prioritas.includes("P4");
+        let isTarget = prioritas.includes("P1") || prioritas.includes("P2") || prioritas.includes("P3") || prioritas.includes("P4");
 
         if (isTarget && job.line && job.line !== "-") {
             let namaLine = job.line.toUpperCase().trim();
             
             if (!hitunganLine[namaLine]) {
                 // Buat objek awal jika Line belum ada di hash map
-                hitunganLine[namaLine] = { total: 0, p1: 0, p2: 0, p4: 0 };
+                hitunganLine[namaLine] = { total: 0, p1: 0, p2: 0, p3: 0, p4: 0 };
             }
             
             // Tambah hitungan total
@@ -517,6 +517,7 @@ function renderRankingMesin() {
             // Tambah hitungan spesifik
             if (prioritas.includes("P1")) hitunganLine[namaLine].p1 += 1;
             if (prioritas.includes("P2")) hitunganLine[namaLine].p2 += 1;
+            if (prioritas.includes("P3")) hitunganLine[namaLine].p3 += 1;
             if (prioritas.includes("P4")) hitunganLine[namaLine].p4 += 1;
         }
     });
@@ -529,6 +530,7 @@ function renderRankingMesin() {
             total: hitunganLine[line].total,
             p1: hitunganLine[line].p1,
             p2: hitunganLine[line].p2,
+            p3: hitunganLine[line].p3,
             p4: hitunganLine[line].p4
         });
     }
@@ -538,7 +540,7 @@ function renderRankingMesin() {
 
     // 4. Render ke UI
     if (arrayRanking.length === 0) {
-        container.innerHTML = `<div class="alert alert-success mt-3 text-center"><i class="fas fa-check-circle me-2"></i>Tidak ada data masalah P1, P2, atau P4 saat ini. Mesin aman!</div>`;
+        container.innerHTML = `<div class="alert alert-success mt-3 text-center"><i class="fas fa-check-circle me-2"></i>Tidak ada data masalah P1, P2, P3, atau P4 saat ini. Mesin aman!</div>`;
         return;
     }
 
@@ -549,7 +551,7 @@ function renderRankingMesin() {
                     <tr class="text-center">
                         <th width="10%">Peringkat</th>
                         <th width="30%" class="text-start">Line Mesin</th>
-                        <th width="15%">Total Masalah (P1,P2,P4)</th>
+                        <th width="15%">Total Masalah (P1,P2,P3,P4)</th>
                         <th>Detail Breakdown</th>
                     </tr>
                 </thead>
@@ -581,6 +583,7 @@ function renderRankingMesin() {
                 <td class="text-start">
                     <span class="badge bg-danger me-1">P1: ${data.p1}</span>
                     <span class="badge bg-warning text-dark me-1">P2: ${data.p2}</span>
+                    <span class="badge bg-primary me-1">P3: ${data.p3}</span>
                     <span class="badge bg-info text-dark">P4: ${data.p4}</span>
                 </td>
             </tr>
