@@ -490,15 +490,22 @@ function renderRiwayatUI() {
 }
 
 // ===============================================
-// LOGIKA BARU: RANKING / PERINGKAT MESIN (P1, P2, P3, P4)
+// LOGIKA BARU: RANKING / PERINGKAT MESIN (BOBOT POIN P1=16, P2=8, P3=4, P4=2)
 // ===============================================
 function renderRankingMesin() {
     const container = document.getElementById('ranking-container');
     if (!container) return;
 
+    const BOBOT_POIN = {
+        P1: 16,
+        P2: 8,
+        P3: 4,
+        P4: 2
+    };
+
     let hitunganLine = {};
 
-    // 1. Looping semua job untuk menghitung P1, P2, P3, P4
+    // 1. Looping semua job untuk menghitung P1, P2, P3, P4 beserta total poinnya
     semuaJobAbnormal.forEach(job => {
         let prioritas = job.prioritas;
         let isTarget = prioritas.includes("P1") || prioritas.includes("P2") || prioritas.includes("P3") || prioritas.includes("P4");
@@ -508,17 +515,26 @@ function renderRankingMesin() {
             
             if (!hitunganLine[namaLine]) {
                 // Buat objek awal jika Line belum ada di hash map
-                hitunganLine[namaLine] = { total: 0, p1: 0, p2: 0, p3: 0, p4: 0 };
+                hitunganLine[namaLine] = { total: 0, poin: 0, p1: 0, p2: 0, p3: 0, p4: 0 };
             }
             
-            // Tambah hitungan total
+            // Tambah hitungan total kasus
             hitunganLine[namaLine].total += 1;
             
-            // Tambah hitungan spesifik
-            if (prioritas.includes("P1")) hitunganLine[namaLine].p1 += 1;
-            if (prioritas.includes("P2")) hitunganLine[namaLine].p2 += 1;
-            if (prioritas.includes("P3")) hitunganLine[namaLine].p3 += 1;
-            if (prioritas.includes("P4")) hitunganLine[namaLine].p4 += 1;
+            // Tambah hitungan spesifik & kalkulasi poin
+            if (prioritas.includes("P1")) {
+                hitunganLine[namaLine].p1 += 1;
+                hitunganLine[namaLine].poin += BOBOT_POIN.P1;
+            } else if (prioritas.includes("P2")) {
+                hitunganLine[namaLine].p2 += 1;
+                hitunganLine[namaLine].poin += BOBOT_POIN.P2;
+            } else if (prioritas.includes("P3")) {
+                hitunganLine[namaLine].p3 += 1;
+                hitunganLine[namaLine].poin += BOBOT_POIN.P3;
+            } else if (prioritas.includes("P4")) {
+                hitunganLine[namaLine].p4 += 1;
+                hitunganLine[namaLine].poin += BOBOT_POIN.P4;
+            }
         }
     });
 
@@ -528,6 +544,7 @@ function renderRankingMesin() {
         arrayRanking.push({
             line: line,
             total: hitunganLine[line].total,
+            poin: hitunganLine[line].poin,
             p1: hitunganLine[line].p1,
             p2: hitunganLine[line].p2,
             p3: hitunganLine[line].p3,
@@ -535,8 +552,14 @@ function renderRankingMesin() {
         });
     }
 
-    // 3. Sorting (urutan) dari total terbesar ke terkecil
-    arrayRanking.sort((a, b) => b.total - a.total);
+    // 3. Sorting (urutan) dari TOTAL POIN terbesar ke terkecil (jika seri, dahulukan P1 -> P2 -> P3 -> total kasus)
+    arrayRanking.sort((a, b) => {
+        if (b.poin !== a.poin) return b.poin - a.poin;
+        if (b.p1 !== a.p1) return b.p1 - a.p1;
+        if (b.p2 !== a.p2) return b.p2 - a.p2;
+        if (b.p3 !== a.p3) return b.p3 - a.p3;
+        return b.total - a.total;
+    });
 
     // 4. Render ke UI
     if (arrayRanking.length === 0) {
@@ -551,8 +574,8 @@ function renderRankingMesin() {
                     <tr class="text-center">
                         <th width="10%">Peringkat</th>
                         <th width="30%" class="text-start">Line Mesin</th>
-                        <th width="15%">Total Masalah (P1,P2,P3,P4)</th>
-                        <th>Detail Breakdown</th>
+                        <th width="18%">Total Poin</th>
+                        <th>Detail Breakdown (Bobot: P1=16, P2=8, P3=4, P4=2)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -579,12 +602,15 @@ function renderRankingMesin() {
                         </button>
                     </div>
                 </td>
-                <td><span class="badge bg-danger fs-6">${data.total}</span> Kasus</td>
+                <td>
+                    <span class="badge bg-danger fs-6">${data.poin}</span> Poin
+                    <div class="small text-muted mt-1">(${data.total} Kasus)</div>
+                </td>
                 <td class="text-start">
-                    <span class="badge bg-danger me-1">P1: ${data.p1}</span>
-                    <span class="badge bg-warning text-dark me-1">P2: ${data.p2}</span>
-                    <span class="badge bg-primary me-1">P3: ${data.p3}</span>
-                    <span class="badge bg-info text-dark">P4: ${data.p4}</span>
+                    <span class="badge bg-danger me-1 mb-1">P1: ${data.p1} (${data.p1 * BOBOT_POIN.P1} pt)</span>
+                    <span class="badge bg-warning text-dark me-1 mb-1">P2: ${data.p2} (${data.p2 * BOBOT_POIN.P2} pt)</span>
+                    <span class="badge bg-primary me-1 mb-1">P3: ${data.p3} (${data.p3 * BOBOT_POIN.P3} pt)</span>
+                    <span class="badge bg-info text-dark mb-1">P4: ${data.p4} (${data.p4 * BOBOT_POIN.P4} pt)</span>
                 </td>
             </tr>
         `;
