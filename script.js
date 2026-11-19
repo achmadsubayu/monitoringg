@@ -581,16 +581,16 @@ function renderRankingMesin() {
                 <tbody>
     `;
 
-    arrayRanking.forEach((data, index) => {
+   arrayRanking.forEach((data, index) => {
         let nomor = index + 1;
         let badgePeringkat = `<span class="fw-bold">${nomor}</span>`;
-        let textTebal = "";
+        let textTebal = (data.poin >= 48) ? "fw-bold text-danger" : "";
 
         // Highlight top 3 menggunakan icon
-        if (nomor === 1) { badgePeringkat = `<i class="fas fa-medal text-warning medal-icon"></i>`; textTebal = "fw-bold text-danger"; }
-        if (nomor === 2) { badgePeringkat = `<i class="fas fa-medal text-secondary medal-icon"></i>`; textTebal = "fw-bold text-danger"; }
-        if (nomor === 3) { badgePeringkat = `<i class="fas fa-medal medal-icon" style="color: #cd7f32;"></i>`; textTebal = "fw-bold text-danger"; }
-
+        if (nomor === 1) { badgePeringkat = `<i class="fas fa-medal text-warning medal-icon"></i>`; }
+        if (nomor === 2) { badgePeringkat = `<i class="fas fa-medal text-secondary medal-icon"></i>`; }
+        if (nomor === 3) { badgePeringkat = `<i class="fas fa-medal medal-icon" style="color: #cd7f32;"></i>`; }
+       
         html += `
             <tr class="ranking-row text-center align-middle" onclick="bukaModalRevisiMesin('${data.line}')" title="Klik untuk melihat Rencana Revisi & Salin Template">
                 <td>${badgePeringkat}</td>
