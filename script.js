@@ -174,6 +174,9 @@ async function loadSemuaData() {
                     } else if (ketLower.includes("(p4)")) {
                         kategoriPrioritas = "P4 - Minor Non Urgent";
                         badgeWarna = "bg-info text-dark"; 
+                    } else if (ketLower.includes("(req produksi)")) {
+                        kategoriPrioritas = "Req Produksi";
+                        badgeWarna = "bg-success";
                     }
 
                     if (statusJob === "Belum Dikerjakan") {
@@ -311,10 +314,12 @@ function terapkanFilterLine() {
         let masukKriteriaLine = false;
         let masukKriteriaPrioritas = false;
 
-        // 1. FILTER PRIORITAS (Dari tombol P1-P4)
+        // 1. FILTER PRIORITAS (Dari tombol P1-P4, Belum Dikategorikan, & Input Produksi)
         if (prioritasAktifSekarang === "ALL") {
             masukKriteriaPrioritas = true;
         } else if (prioritasAktifSekarang === "BELUM" && job.prioritas === "Belum Dikategorikan") {
+            masukKriteriaPrioritas = true;
+        } else if (prioritasAktifSekarang === "PRODUKSI" && job.prioritas === "Req Produksi") {
             masukKriteriaPrioritas = true;
         } else if (job.prioritas.includes(prioritasAktifSekarang)) {
             masukKriteriaPrioritas = true;
@@ -392,6 +397,7 @@ function renderJobsUI(dataJobs) {
         else if (job.warnaPrioritas === "bg-warning text-dark") borderClass = "border-warning";
         else if (job.warnaPrioritas === "bg-primary") borderClass = "border-primary";
         else if (job.warnaPrioritas === "bg-info text-dark") borderClass = "border-info";
+        else if (job.warnaPrioritas === "bg-success") borderClass = "border-success";
 
         let cardHTML = `
             <div class="col-md-6 col-12" id="${cardId}">
@@ -650,14 +656,14 @@ function deteksiGrupUnitMesin(job) {
     return "Umum / Lainnya";
 }
 
-// Fungsi membersihkan teks keterangan untuk masuk ke Template WA (hapus tag (p1)-(p4) dan strip awal)
+// Fungsi membersihkan teks keterangan untuk masuk ke Template WA (hapus tag (p1)-(p4), (req produksi) dan strip awal)
 function bersihkanKeteranganUntukTemplate(job) {
     let teks = (job.ket || "").trim();
     if (teks === "" || teks === "-") {
         teks = (job.namaJob || "").replace(" 👉 Condition", "").trim();
     }
-    // Hapus tanda bullet/strip di awal dan tag prioritas (p1)/(p2)/(p3)/(p4) di akhir/tengah
-    teks = teks.replace(/^[-•*.\s]+/, '').replace(/\s*\([pP][1-4]\)\s*/g, ' ').trim();
+    // Hapus tanda bullet/strip di awal dan tag prioritas (p1)-(p4) / (req produksi)
+    teks = teks.replace(/^[-•*.\s]+/, '').replace(/\s*\([pP][1-4]\)\s*/g, ' ').replace(/\s*\(req\s*produksi\)\s*/gi, ' ').trim();
     return teks;
 }
 
@@ -972,10 +978,250 @@ async function selesaikanSemuaJobRevisi() {
     if (modalInstance) modalInstance.hide();
 }
 
+// =========================================================================
+// FITUR BARU: FORM INPUT PRODUKSI (AUTO SINKRON KE MASTER SPREADSHEET)
+// =========================================================================
+
+function setTanggalDefaultProduksi() {
+    const inputTanggal = document.getElementById('prodTanggal');
+    if (!inputTanggal) return;
+    const sekarang = new Date();
+    const tahun = sekarang.getFullYear();
+    const bulan = String(sekarang.getMonth() + 1).padStart(2, '0');
+    const hari = String(sekarang.getDate()).padStart(2, '0');
+    inputTanggal.value = `${tahun}-${bulan}-${hari}`;
+}
+
+function susunFormatNamaJobProduksi() {
+    const selectUnit = document.getElementById('prodUnit');
+    const inputUnitManual = document.getElementById('prodUnitManual');
+    const inputSubAssembly = document.getElementById('prodSubAssembly');
+    const inputPertanyaan = document.getElementById('prodPertanyaan');
+
+    let unitDipilih = selectUnit ? selectUnit.value.trim() : "";
+    if (unitDipilih === "LAINNYA") {
+        unitDipilih = inputUnitManual ? inputUnitManual.value.trim() : "";
+    }
+
+    let subAssembly = inputSubAssembly ? inputSubAssembly.value.trim() : "";
+    let pertanyaan = inputPertanyaan ? inputPertanyaan.value.trim() : "";
+
+    let unitTampil = unitDipilih ? unitDipilih.toUpperCase() : "-";
+    let subTampil = subAssembly ? subAssembly.toUpperCase() : "-";
+
+    let hasil = `[UNIT: ${unitTampil} | SUB-ASSEMBLY: ${subTampil}]`;
+    if (pertanyaan !== "") {
+        hasil += ` ${pertanyaan}`;
+    }
+    return hasil;
+}
+
+function updatePreviewNamaJobProduksi() {
+    const previewEl = document.getElementById('previewNamaJobProduksi');
+    if (!previewEl) return;
+    previewEl.innerText = susunFormatNamaJobProduksi();
+}
+
+function inisialisasiFormProduksi() {
+    const form = document.getElementById('formInputProduksi');
+    if (!form) return;
+
+    // 1. Set tanggal hari ini secara otomatis
+    setTanggalDefaultProduksi();
+
+    // 2. Toggle input manual jika pilih Unit "LAINNYA" + live preview Nama Job
+    const selectUnit = document.getElementById('prodUnit');
+    const inputUnitManual = document.getElementById('prodUnitManual');
+    const inputSubAssembly = document.getElementById('prodSubAssembly');
+    const inputPertanyaan = document.getElementById('prodPertanyaan');
+
+    if (selectUnit) {
+        selectUnit.addEventListener('change', function () {
+            if (this.value === "LAINNYA") {
+                inputUnitManual.classList.remove('d-none');
+                inputUnitManual.required = true;
+                inputUnitManual.focus();
+            } else {
+                inputUnitManual.classList.add('d-none');
+                inputUnitManual.required = false;
+                inputUnitManual.value = "";
+            }
+            updatePreviewNamaJobProduksi();
+        });
+    }
+
+    [inputUnitManual, inputSubAssembly, inputPertanyaan].forEach(el => {
+        if (el) el.addEventListener('input', updatePreviewNamaJobProduksi);
+    });
+
+    // 3. Preview Lampiran Foto Produksi
+    const inputLampiran = document.getElementById('prodLampiran');
+    const imgPreview = document.getElementById('previewProdLampiran');
+    if (inputLampiran && imgPreview) {
+        inputLampiran.addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (!file) {
+                imgPreview.style.display = 'none';
+                imgPreview.src = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function () {
+                imgPreview.src = reader.result;
+                imgPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // 4. Reset Form
+    const btnReset = document.getElementById('btnResetProduksi');
+    if (btnReset) {
+        btnReset.addEventListener('click', function () {
+            setTimeout(() => {
+                setTanggalDefaultProduksi();
+                if (inputUnitManual) {
+                    inputUnitManual.classList.add('d-none');
+                    inputUnitManual.required = false;
+                }
+                if (imgPreview) {
+                    imgPreview.style.display = 'none';
+                    imgPreview.src = '';
+                }
+                updatePreviewNamaJobProduksi();
+            }, 0);
+        });
+    }
+
+    // 5. Tombol Simpan & Kirim Temuan Produksi
+    const btnKirim = document.getElementById('btnKirimProduksi');
+    if (btnKirim) {
+        btnKirim.addEventListener('click', simpanInputProduksi);
+    }
+
+    updatePreviewNamaJobProduksi();
+}
+
+async function simpanInputProduksi() {
+    const tanggalRaw = document.getElementById('prodTanggal').value.trim();
+    const shift = document.getElementById('prodShift').value.trim();
+    const lineRaw = document.getElementById('prodLine').value.trim();
+    const pelapor = document.getElementById('prodPelapor').value.trim();
+    const unitSelect = document.getElementById('prodUnit').value.trim();
+    const unitManual = document.getElementById('prodUnitManual').value.trim();
+    const subAssembly = document.getElementById('prodSubAssembly').value.trim();
+    const keteranganRaw = document.getElementById('prodKeterangan').value.trim();
+
+    const kondisiEl = document.querySelector('input[name="prodKondisi"]:checked');
+    const replaceEl = document.querySelector('input[name="prodReplace"]:checked');
+    const kondisi = kondisiEl ? kondisiEl.value : "NOT OK";
+    const replaceVal = replaceEl ? replaceEl.value : "NO";
+
+    const unitFinal = (unitSelect === "LAINNYA") ? unitManual : unitSelect;
+
+    // Validasi wajib isi
+    if (!tanggalRaw || !shift || !lineRaw || !pelapor || !unitFinal || !subAssembly || !keteranganRaw) {
+        alert("Mohon lengkapi semua kolom bertanda bintang (*) terlebih dahulu!");
+        return;
+    }
+
+    // Ubah format tanggal YYYY-MM-DD -> DD/MM/YYYY agar seragam dengan Master Spreadsheet
+    const partsTgl = tanggalRaw.split('-');
+    const tanggalFormat = (partsTgl.length === 3) ? `${partsTgl[2]}/${partsTgl[1]}/${partsTgl[0]}` : tanggalRaw;
+
+    // Susun Nama Job sesuai standar [UNIT: ... | SUB-ASSEMBLY: ...]
+    const namaJobFinal = susunFormatNamaJobProduksi();
+
+    // Otomatis tambahkan tag (req produksi) jika belum ada
+    let keteranganFinal = keteranganRaw;
+    if (!keteranganFinal.toLowerCase().includes("(req produksi)")) {
+        keteranganFinal = `${keteranganFinal} (req produksi)`;
+    }
+
+    // Ambil foto base64 jika diupload
+    const fotoInput = document.getElementById('prodLampiran');
+    let base64String = "";
+    if (fotoInput && fotoInput.files.length > 0) {
+        base64String = document.getElementById('previewProdLampiran').src;
+    }
+
+    const btnKirim = document.getElementById('btnKirimProduksi');
+    const teksAsliBtn = btnKirim.innerHTML;
+    btnKirim.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Menyimpan ke Sheet...';
+    btnKirim.disabled = true;
+
+    const payload = {
+        aksi: "tambahProduksi",
+        tanggal: tanggalFormat,
+        shift: shift,
+        line: lineRaw,
+        pelapor: pelapor,
+        namaJob: namaJobFinal,
+        kondisi: kondisi,
+        replace: replaceVal,
+        keterangan: keteranganFinal,
+        fotoBase64: base64String
+    };
+
+    try {
+        const response = await fetch(SCRIPT_URL_SIMPAN, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result.status === "sukses") {
+            alert("Berhasil! Temuan produksi sudah tersimpan di Master Spreadsheet dan langsung masuk ke Job Aktif.");
+
+            // Langsung tambahkan ke memori lokal agar otomatis muncul di website tanpa menunggu delay cache CSV
+            semuaJobAbnormal.unshift({
+                idUnik: result.idUnik,
+                tipe: "Aktivitas",
+                tanggal: tanggalFormat,
+                shift: shift,
+                line: result.line || lineRaw.toUpperCase(),
+                pelapor: pelapor,
+                namaJob: namaJobFinal,
+                cond: kondisi,
+                rep: replaceVal,
+                ket: keteranganFinal,
+                lamp: result.fileUrl || "",
+                prioritas: "Req Produksi",
+                warnaPrioritas: "bg-success"
+            });
+
+            // Perbarui seluruh tampilan dashboard (PIC, Dropdown Line, Kartu Job, Ranking)
+            renderTombolPIC();
+            inisialisasiFilterLine();
+            terapkanFilterLine();
+            renderRankingMesin();
+
+            // Reset form & siapkan untuk input berikutnya
+            document.getElementById('formInputProduksi').reset();
+            setTanggalDefaultProduksi();
+            document.getElementById('prodUnitManual').classList.add('d-none');
+            document.getElementById('prodUnitManual').required = false;
+            document.getElementById('previewProdLampiran').style.display = 'none';
+            document.getElementById('previewProdLampiran').src = '';
+            updatePreviewNamaJobProduksi();
+        } else {
+            alert("Gagal menyimpan temuan produksi: " + (result.pesan || "Unknown error"));
+        }
+    } catch (error) {
+        alert("Terjadi error koneksi ke Google Apps Script. Pesan: " + error.message);
+    } finally {
+        btnKirim.innerHTML = teksAsliBtn;
+        btnKirim.disabled = false;
+    }
+}
+
 // ===============================================
 // PERINTAH SAAT WEBSITE PERTAMA KALI DIBUKA
 // ===============================================
 window.onload = () => { 
     loadSemuaData(); 
     inisialisasiTombolPrioritas(); 
+    inisialisasiFormProduksi();
 };
