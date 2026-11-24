@@ -80,6 +80,53 @@
         }
 
         /* ========================================================== */
+        /* CSS TAMBAHAN UNTUK TAB INPUT PRODUKSI                      */
+        /* ========================================================== */
+        #pills-produksi-tab.active {
+            background-color: #198754;
+            color: #ffffff !important;
+        }
+        .produksi-section-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .produksi-section-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #2c3e50;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+        }
+        .toggle-pilihan-group .btn {
+            font-weight: 600;
+            padding: 8px 16px;
+            transition: all 0.2s ease;
+        }
+        .upload-zone-produksi {
+            border: 2px dashed #ced4da;
+            border-radius: 8px;
+            padding: 16px;
+            background-color: #ffffff;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        .upload-zone-produksi:hover {
+            border-color: #198754;
+        }
+        .preview-nama-job-box {
+            background-color: #eef6ff;
+            border-left: 4px solid #0d6efd;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            color: #1e3a5f;
+        }
+
+        /* ========================================================== */
         /* OPTIMASI TAMPILAN UNTUK HP (MOBILE RESPONSIVE TWEAKS) */
         /* ========================================================== */
         @media (max-width: 768px) {
@@ -115,6 +162,9 @@
             /* Font tabel diperkecil sedikit */
             table { font-size: 0.85rem; }
             .medal-icon { font-size: 1.2rem; }
+
+            /* Penyesuaian padding form produksi di HP */
+            .produksi-section-box { padding: 12px; }
         }
     </style>
 </head>
@@ -143,6 +193,11 @@
             <li class="nav-item">
                 <button class="nav-link text-danger fw-bold" id="pills-ranking-tab" data-bs-toggle="pill" data-bs-target="#pills-ranking" type="button">
                     <i class="fas fa-chart-line me-1"></i> Peringkat Mesin
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link text-success fw-bold" id="pills-produksi-tab" data-bs-toggle="pill" data-bs-target="#pills-produksi" type="button">
+                    <i class="fas fa-plus-circle me-1"></i> Input Produksi
                 </button>
             </li>
         </ul>
@@ -195,6 +250,7 @@
                             <button class="btn btn-outline-primary btn-sm rounded-pill btn-filter-custom" data-prioritas="P3">P3 - Major Non Urgent</button>
                             <button class="btn btn-outline-info text-dark btn-sm rounded-pill btn-filter-custom" data-prioritas="P4">P4 - Minor Non Urgent</button>
                             <button class="btn btn-outline-secondary btn-sm rounded-pill btn-filter-custom" data-prioritas="BELUM">Belum Dikategorikan</button>
+                            <button class="btn btn-outline-success btn-sm rounded-pill btn-filter-custom" data-prioritas="PRODUKSI">Input Produksi</button>
                         </div>
 
                         <!-- Keterangan Legend Prioritas -->
@@ -212,6 +268,9 @@
                                 </div>
                                 <div class="col-md-3 col-6 mb-2">
                                     <span class="badge bg-info text-dark me-1">P4</span> = <strong>Minor Non Urgent</strong>
+                                </div>
+                                <div class="col-12 mt-1 pt-2 border-top">
+                                    <span class="badge bg-success me-1">Req Produksi</span> = <strong>Input Temuan Tambahan dari Produksi</strong>
                                 </div>
                             </div>
                         </div>
@@ -258,6 +317,246 @@
                                 <p>Menghitung data peringkat mesin...</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 4: INPUT TEMUAN PRODUKSI (BARU)        -->
+            <!-- ========================================== -->
+            <div class="tab-pane fade" id="pills-produksi">
+                <div class="card shadow-sm border-0 mb-5">
+                    <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="fw-bold mb-0">
+                                <i class="fas fa-file-signature me-2"></i>Form Input Temuan Produksi
+                            </h5>
+                            <small class="opacity-75">Data temuan akan otomatis tersimpan ke Master Spreadsheet & tampil di Job Aktif</small>
+                        </div>
+                        <span class="badge bg-light text-success fw-bold px-3 py-2">
+                            <i class="fas fa-sync-alt me-1"></i> Auto Sinkron Sheet
+                        </span>
+                    </div>
+
+                    <div class="card-body p-3 p-md-4">
+                        <form id="formInputProduksi">
+                            
+                            <!-- BAGIAN 1: IDENTITAS LAPORAN -->
+                            <div class="produksi-section-box">
+                                <div class="produksi-section-title">
+                                    <i class="fas fa-id-card text-success me-2"></i>1. Identitas Laporan
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-3 col-sm-6 col-12">
+                                        <label for="prodTanggal" class="form-label small fw-bold">Tanggal <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-calendar-alt text-success"></i></span>
+                                            <input type="date" id="prodTanggal" class="form-control" required>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3 col-sm-6 col-12">
+                                        <label for="prodShift" class="form-label small fw-bold">Shift <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-clock text-success"></i></span>
+                                            <select id="prodShift" class="form-select" required>
+                                                <option value="">-- Pilih Shift --</option>
+                                                <option value="Shift 1">Shift 1</option>
+                                                <option value="Shift 2">Shift 2</option>
+                                                <option value="Shift 3">Shift 3</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3 col-sm-6 col-12">
+                                        <label for="prodLine" class="form-label small fw-bold">Line / Mesin <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-industry text-success"></i></span>
+                                            <input type="text" id="prodLine" list="daftarLineProduksi" class="form-control" placeholder="Ketik / pilih mesin..." required>
+                                            <datalist id="daftarLineProduksi">
+                                                <!-- Daftar Mesin Standar (Sesuai Master PIC) -->
+                                                <option value="FC103"></option>
+                                                <option value="FC108"></option>
+                                                <option value="FC118"></option>
+                                                <option value="FC121"></option>
+                                                <option value="FC122"></option>
+                                                <option value="HRT001"></option>
+                                                <option value="HRT002"></option>
+                                                <option value="HRT003"></option>
+                                                <option value="HRT004"></option>
+                                                <option value="JRT005"></option>
+                                                <option value="JRT006"></option>
+                                                <option value="NP002"></option>
+                                                <option value="NP007"></option>
+                                                <option value="NP313"></option>
+                                                <option value="NP314"></option>
+                                                <option value="NP315"></option>
+                                                <option value="NP316"></option>
+                                                <option value="NP317"></option>
+                                                <option value="NP318"></option>
+                                                <option value="NP319"></option>
+                                                <option value="NP320"></option>
+                                                <option value="NP321"></option>
+                                                <option value="NP322"></option>
+                                                <option value="NP323"></option>
+                                                <option value="NP324"></option>
+                                                <option value="TL204"></option>
+                                                <option value="TW002"></option>
+                                                <option value="TW404"></option>
+                                                <option value="TW405"></option>
+                                                <option value="TW406"></option>
+                                                <option value="TW407"></option>
+                                                <option value="TW408"></option>
+                                                <option value="TW409"></option>
+                                                <option value="TW410"></option>
+                                                <option value="TW411"></option>
+                                                <option value="TW412"></option>
+                                                <option value="TW413"></option>
+                                            </datalist>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3 col-sm-6 col-12">
+                                        <label for="prodPelapor" class="form-label small fw-bold">Pelapor Awal <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fas fa-user text-success"></i></span>
+                                            <input type="text" id="prodPelapor" class="form-control" placeholder="Nama pelapor..." required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BAGIAN 2: PERTANYAAN (UNIT & SUB-ASSEMBLY) -->
+                            <div class="produksi-section-box">
+                                <div class="produksi-section-title">
+                                    <i class="fas fa-cogs text-success me-2"></i>2. Pertanyaan (Unit &amp; Sub-Assembly)
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-4 col-12">
+                                        <label for="prodUnit" class="form-label small fw-bold">Unit Mesin <span class="text-danger">*</span></label>
+                                        <select id="prodUnit" class="form-select" required>
+                                            <option value="">-- Pilih Unit --</option>
+                                            <option value="UNWIND">UNWIND</option>
+                                            <option value="EMBOSS">EMBOSS</option>
+                                            <option value="INTERFOLD">INTERFOLD</option>
+                                            <option value="LOGSAW">LOGSAW</option>
+                                            <option value="PACKAGING">PACKAGING</option>
+                                            <option value="ABS / MBS">ABS / MBS</option>
+                                            <option value="CONVEYOR">CONVEYOR</option>
+                                            <option value="PANEL / ELECTRICAL">PANEL / ELECTRICAL</option>
+                                            <option value="LAINNYA">LAINNYA (Ketik Manual)</option>
+                                        </select>
+                                        <!-- Input manual jika memilih LAINNYA -->
+                                        <input type="text" id="prodUnitManual" class="form-control form-control-sm mt-2 d-none" placeholder="Ketik nama unit mesin...">
+                                    </div>
+
+                                    <div class="col-md-4 col-12">
+                                        <label for="prodSubAssembly" class="form-label small fw-bold">Sub-Assembly <span class="text-danger">*</span></label>
+                                        <input type="text" id="prodSubAssembly" class="form-control" placeholder="Contoh: Motor Jumbo, Clamp Jumbo, Bearing..." required>
+                                    </div>
+
+                                    <div class="col-md-4 col-12">
+                                        <label for="prodPertanyaan" class="form-label small fw-bold">Item / Bagian yang Dicek</label>
+                                        <input type="text" id="prodPertanyaan" class="form-control" placeholder="Contoh: Cek kondisi bearing conveyor">
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="preview-nama-job-box">
+                                            <i class="fas fa-eye me-1 text-primary"></i>
+                                            <strong>Preview Format Nama Job di Sheet:</strong>
+                                            <span id="previewNamaJobProduksi" class="fw-semibold">[UNIT: - | SUB-ASSEMBLY: -]</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BAGIAN 3: STATUS KONDISI, REPLACE & KATEGORI -->
+                            <div class="produksi-section-box">
+                                <div class="produksi-section-title">
+                                    <i class="fas fa-clipboard-check text-success me-2"></i>3. Status Kondisi, Penggantian &amp; Kategori
+                                </div>
+                                <div class="row g-3 align-items-start">
+                                    <!-- Pilihan Kondisi: OK / NOT OK -->
+                                    <div class="col-md-4 col-sm-6 col-12">
+                                        <label class="form-label small fw-bold d-block">Kondisi <span class="text-danger">*</span></label>
+                                        <div class="btn-group w-100 toggle-pilihan-group" role="group" aria-label="Pilihan Kondisi">
+                                            <input type="radio" class="btn-check" name="prodKondisi" id="prodKondisiOK" value="OK" autocomplete="off">
+                                            <label class="btn btn-outline-success" for="prodKondisiOK">
+                                                <i class="fas fa-check me-1"></i> OK
+                                            </label>
+
+                                            <input type="radio" class="btn-check" name="prodKondisi" id="prodKondisiNotOK" value="NOT OK" autocomplete="off" checked>
+                                            <label class="btn btn-outline-danger" for="prodKondisiNotOK">
+                                                <i class="fas fa-times me-1"></i> NOT OK
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pilihan Replace: YES / NO -->
+                                    <div class="col-md-4 col-sm-6 col-12">
+                                        <label class="form-label small fw-bold d-block">Replace (Perlu Ganti Part?) <span class="text-danger">*</span></label>
+                                        <div class="btn-group w-100 toggle-pilihan-group" role="group" aria-label="Pilihan Replace">
+                                            <input type="radio" class="btn-check" name="prodReplace" id="prodReplaceYes" value="YES" autocomplete="off">
+                                            <label class="btn btn-outline-danger" for="prodReplaceYes">
+                                                <i class="fas fa-exchange-alt me-1"></i> YES
+                                            </label>
+
+                                            <input type="radio" class="btn-check" name="prodReplace" id="prodReplaceNo" value="NO" autocomplete="off" checked>
+                                            <label class="btn btn-outline-secondary" for="prodReplaceNo">
+                                                <i class="fas fa-ban me-1"></i> NO
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Kategori Otomatis: Req Produksi (Tanpa Pilihan P1-P4) -->
+                                    <div class="col-md-4 col-12">
+                                        <label for="prodKategori" class="form-label small fw-bold">Kategori Temuan</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-success text-white border-success">
+                                                <i class="fas fa-tag"></i>
+                                            </span>
+                                            <input type="text" id="prodKategori" class="form-control fw-bold text-success bg-white border-success" value="Req Produksi" readonly>
+                                        </div>
+                                        <small class="text-muted">Otomatis masuk ke kategori <strong>Req Produksi</strong>.</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BAGIAN 4: KETERANGAN AWAL & LAMPIRAN -->
+                            <div class="produksi-section-box mb-4">
+                                <div class="produksi-section-title">
+                                    <i class="fas fa-comment-dots text-success me-2"></i>4. Keterangan Awal &amp; Lampiran Foto
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-7 col-12">
+                                        <label for="prodKeterangan" class="form-label small fw-bold">Keterangan Awal <span class="text-danger">*</span></label>
+                                        <textarea id="prodKeterangan" class="form-control" rows="4" placeholder="Jelaskan detail temuan abnormal di lapangan secara jelas..." required></textarea>
+                                        <small class="text-muted">Tag <code>(req produksi)</code> akan otomatis ditambahkan agar langsung terbaca pada filter <strong>Input Produksi</strong>.</small>
+                                    </div>
+
+                                    <div class="col-md-5 col-12">
+                                        <label for="prodLampiran" class="form-label small fw-bold">Lampiran Awal (Foto Bukti - Opsional)</label>
+                                        <div class="upload-zone-produksi">
+                                            <i class="fas fa-camera fa-2x text-success mb-2"></i>
+                                            <input class="form-control form-control-sm" type="file" id="prodLampiran" accept="image/*">
+                                            <small class="text-muted d-block mt-1">Foto akan otomatis diupload ke Google Drive &amp; link-nya masuk ke Sheet.</small>
+                                            <img id="previewProdLampiran" class="foto-preview mx-auto shadow-sm">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TOMBOL AKSI FORM -->
+                            <div class="d-flex justify-content-end gap-2 flex-wrap">
+                                <button type="reset" id="btnResetProduksi" class="btn btn-outline-secondary px-4">
+                                    <i class="fas fa-undo me-1"></i> Reset Form
+                                </button>
+                                <button type="button" id="btnKirimProduksi" class="btn btn-success fw-bold px-4">
+                                    <i class="fas fa-paper-plane me-1"></i> Simpan &amp; Kirim Temuan
+                                </button>
+                            </div>
+
+                        </form>
                     </div>
                 </div>
             </div>
